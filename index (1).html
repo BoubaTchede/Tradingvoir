@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Poste de suivi — Forex · Indices · Énergie</title>
+<style>
+  :root{
+    --bg:#12141a;
+    --panel:#1a1d26;
+    --panel-2:#20232e;
+    --line:#2b2f3b;
+    --ink:#e8e6df;
+    --ink-dim:#9a9fae;
+    --amber:#d3a15a;
+    --amber-dim:#8a6d40;
+    --sell-strong:#d9484f;
+    --sell:#e08a6b;
+    --neutral:#dcb84a;
+    --buy:#8fd0a0;
+    --buy-strong:#3fb87f;
+    --mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);}
+  a{color:var(--amber);}
+
+  header.desk{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 26px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, #14161d, #12141a);
+    position:sticky;top:0;z-index:20;flex-wrap:wrap;gap:12px;
+  }
+  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand .mark{
+    font-family:var(--mono);color:var(--amber);font-size:20px;letter-spacing:1px;
+  }
+  .brand h1{font-size:16px;font-weight:600;margin:0;color:var(--ink);}
+  .brand p{margin:0;font-size:12px;color:var(--ink-dim);}
+
+  .desk-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  select, .btn, input[type=text]{
+    background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+    padding:8px 10px;border-radius:6px;font-size:13px;font-family:var(--sans);
+  }
+  select:focus, input:focus{outline:1px solid var(--amber);}
+  .btn{cursor:pointer;transition:border-color .15s ease;}
+  .btn:hover{border-color:var(--amber-dim);}
+  .btn.primary{background:var(--amber);color:#1a1408;border-color:var(--amber);font-weight:600;}
+  .btn.primary:hover{background:#c4924e;}
+  .btn.ghost{background:transparent;}
+  .btn.small{padding:5px 8px;font-size:12px;}
+
+  #ticker-tape-wrap{border-bottom:1px solid var(--line);background:var(--panel);}
+
+  .tools-row{
+    display:grid;grid-template-columns:1fr 1.3fr;gap:16px;
+    padding:16px 26px;border-bottom:1px solid var(--line);background:var(--bg);
+    max-width:1500px;margin:0 auto;
+  }
+  @media (max-width:900px){ .tools-row{grid-template-columns:1fr;} }
+  .tool-panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+  .tool-panel h3{
+    font-size:11px;text-transform:uppercase;letter-spacing:0.6px;color:var(--ink-dim);
+    margin:0 0 10px 0;font-weight:600;display:flex;justify-content:space-between;align-items:center;
+  }
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--buy-strong);display:inline-block;margin-right:6px;
+    box-shadow:0 0 0 0 rgba(63,184,127,.6);animation:pulse 2s infinite;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(63,184,127,.5);}
+    70%{box-shadow:0 0 0 6px rgba(63,184,127,0);}
+    100%{box-shadow:0 0 0 0 rgba(63,184,127,0);}
+  }
+  .utc-clock{font-family:var(--mono);font-size:22px;color:var(--amber);margin-bottom:12px;letter-spacing:1px;}
+  .utc-clock span{font-size:11px;color:var(--ink-dim);font-family:var(--sans);display:block;margin-top:2px;letter-spacing:0;}
+  .session-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+  .session-name{width:96px;font-size:12px;color:var(--ink-dim);flex-shrink:0;}
+  .session-track{flex:1;height:8px;background:#262a35;border-radius:4px;position:relative;overflow:hidden;}
+  .session-fill{position:absolute;top:0;bottom:0;background:var(--line);border-radius:4px;}
+  .session-fill.open{background:var(--buy-strong);}
+  .session-fill.overlap{background:var(--amber);}
+  .session-status{width:76px;text-align:right;font-size:11px;color:var(--ink-dim);flex-shrink:0;}
+  .session-status.open{color:var(--buy-strong);font-weight:600;}
+  .overlap-note{font-size:11px;color:var(--amber);margin-top:8px;}
+
+  #config-panel{
+    display:none;padding:16px 26px;border-bottom:1px solid var(--line);
+    background:var(--panel);gap:14px;flex-wrap:wrap;
+  }
+  #config-panel.open{display:flex;}
+  .slot-config{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-width:220px;flex:1;
+  }
+  .slot-config .row{display:flex;gap:6px;}
+  .slot-config label{font-size:11px;color:var(--ink-dim);text-transform:none;}
+  .slot-config select, .slot-config input{width:100%;}
+
+  main{padding:22px 26px 60px;max-width:1500px;margin:0 auto;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(560px,1fr));gap:20px;}
+
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+  }
+  .card-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel-2);
+  }
+  .card-head .sym{font-family:var(--mono);font-size:16px;letter-spacing:0.5px;color:var(--ink);}
+  .card-head .sym small{display:block;font-family:var(--sans);color:var(--ink-dim);font-size:11px;font-weight:400;margin-top:2px;}
+
+  .card-body{display:grid;grid-template-columns:1.35fr 1fr;}
+  @media (max-width:900px){ .card-body{grid-template-columns:1fr;} .grid{grid-template-columns:1fr;} }
+
+  .chart-col{border-right:1px solid var(--line);}
+  @media (max-width:900px){ .chart-col{border-right:none;border-bottom:1px solid var(--line);} }
+  .chart-wrap{height:430px;}
+  .tradingview-widget-container{height:100%;width:100%;}
+
+  .chart-hint{
+    padding:8px 14px;font-size:11px;color:var(--ink-dim);background:var(--panel-2);
+    border-top:1px solid var(--line);
+  }
+  .chart-hint strong{color:var(--amber);font-weight:600;}
+
+  .side-col{display:flex;flex-direction:column;}
+  .side-block{padding:12px 14px;border-bottom:1px solid var(--line);}
+  .side-block:last-child{border-bottom:none;}
+  .side-block h3{
+    font-size:11px;text-transform:uppercase;letter-spacing:0.6px;color:var(--ink-dim);
+    margin:0 0 8px 0;font-weight:600;
+  }
+
+  /* composite bias bar */
+  .bias-bar{display:flex;height:14px;border-radius:7px;overflow:hidden;border:1px solid var(--line);}
+  .bias-seg{flex:1;background:#262a35;position:relative;}
+  .bias-seg.active-ss{background:var(--sell-strong);}
+  .bias-seg.active-s{background:var(--sell);}
+  .bias-seg.active-n{background:var(--neutral);}
+  .bias-seg.active-b{background:var(--buy);}
+  .bias-seg.active-bs{background:var(--buy-strong);}
+  .bias-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--ink-dim);margin-top:5px;font-family:var(--mono);}
+  .bias-verdict{margin-top:8px;font-size:13px;font-weight:600;}
+  .bias-verdict.txt-ss{color:var(--sell-strong);}
+  .bias-verdict.txt-s{color:var(--sell);}
+  .bias-verdict.txt-n{color:var(--neutral);}
+  .bias-verdict.txt-b{color:var(--buy);}
+  .bias-verdict.txt-bs{color:var(--buy-strong);}
+
+  .journal-form select, .journal-form textarea{
+    width:100%;margin-bottom:8px;background:var(--panel-2);border:1px solid var(--line);
+    color:var(--ink);border-radius:6px;padding:7px 8px;font-size:13px;font-family:var(--sans);
+  }
+  .journal-form textarea{resize:vertical;min-height:46px;}
+  .journal-form .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+
+  .journal-log{max-height:150px;overflow-y:auto;font-size:12px;}
+  .journal-entry{
+    border-left:2px solid var(--line);padding:6px 0 6px 10px;margin-bottom:6px;position:relative;
+  }
+  .journal-entry .ts{color:var(--ink-dim);font-family:var(--mono);font-size:10px;}
+  .journal-entry .tags{margin-top:2px;}
+  .tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:10px;margin-right:4px;margin-top:3px;border:1px solid var(--line);color:var(--ink-dim);}
+  .tag.buy{color:var(--buy);border-color:var(--buy);}
+  .tag.sell{color:var(--sell);border-color:var(--sell);}
+  .journal-entry .del{position:absolute;right:0;top:6px;cursor:pointer;color:var(--ink-dim);font-size:11px;}
+  .journal-entry .del:hover{color:var(--sell);}
+  .journal-entry .note{color:var(--ink);margin-top:3px;}
+  .empty-log{color:var(--ink-dim);font-size:12px;font-style:italic;}
+
+  footer{padding:20px 26px 40px;color:var(--ink-dim);font-size:12px;max-width:1500px;margin:0 auto;border-top:1px solid var(--line);}
+  footer strong{color:var(--ink);}
+</style>
+</head>
+<body>
+
+<header class="desk">
+  <div class="brand">
+    <span class="mark">⌁</span>
+    <div>
+      <h1>Poste de suivi marché</h1>
+      <p>Forex · Indices · Énergie — structure de marché & analyse technique</p>
+    </div>
+  </div>
+  <div class="desk-controls">
+    <select id="interval-select"></select>
+    <button class="btn" id="toggle-config">Configurer les paires</button>
+  </div>
+</header>
+
+<div id="ticker-tape-wrap">
+  <div class="tradingview-widget-container" id="ticker-tape"></div>
+</div>
+
+<div id="config-panel"></div>
+
+<div class="tools-row">
+  <div class="tool-panel">
+    <h3><span><span class="live-dot"></span>Sessions du marché (UTC)</span></h3>
+    <div id="session-clock"></div>
+  </div>
+  <div class="tool-panel">
+    <h3><span><span class="live-dot"></span>Calendrier économique</span></h3>
+    <div class="tradingview-widget-container" id="econ-calendar"></div>
+  </div>
+</div>
+
+<main>
+  <div class="grid" id="grid"></div>
+</main>
+
+<footer>
+  <p><strong>Deux couches de signal, à ne pas confondre :</strong> la jauge « Analyse technique » est calculée automatiquement par TradingView à partir du RSI, du MACD, des moyennes mobiles, etc. La barre « Biais structure de marché » est calculée à partir de <em>vos propres observations</em> (prise de liquidité, BOS, retournement) saisies ci-dessous — cet outil ne détecte pas ces éléments automatiquement, il vous aide seulement à formaliser et pondérer votre lecture.</p>
+  <p>Cet outil est une aide à la décision, pas un conseil financier. Vérifiez toujours vos analyses avant de passer un ordre.</p>
+</footer>
+
+<script>
+// ---------- Symbol catalogue ----------
+const CATALOGUE = {
+  "Forex": {
+    "EUR/USD": "FX:EURUSD",
+    "GBP/USD": "FX:GBPUSD",
+    "USD/JPY": "FX:USDJPY",
+    "USD/CHF": "FX:USDCHF",
+    "AUD/USD": "FX:AUDUSD",
+    "USD/CAD": "FX:USDCAD",
+    "Or (XAU/USD)": "OANDA:XAUUSD"
+  },
+  "Indices": {
+    "US30 (Dow Jones)": "TVC:DJI",
+    "US100 (Nasdaq)": "TVC:NDX",
+    "SPX500 (S&P 500)": "TVC:SPX",
+    "GER40 (DAX)": "TVC:DAX",
+    "UK100 (FTSE)": "TVC:UKX"
+  },
+  "Énergie": {
+    "Pétrole WTI (USOIL)": "TVC:USOIL",
+    "Pétrole Brent (UKOIL)": "TVC:UKOIL",
+    "Gaz naturel": "TVC:NATURALGAS"
+  },
+  "Crypto": {
+    "Bitcoin (BTC/USD)": "COINBASE:BTCUSD",
+    "Ethereum (ETH/USD)": "COINBASE:ETHUSD",
+    "Solana (SOL/USD)": "COINBASE:SOLUSD",
+    "XRP (XRP/USD)": "COINBASE:XRPUSD",
+    "Litecoin (LTC/USD)": "COINBASE:LTCUSD"
+  }
+};
+
+const INTERVALS = [
+  {label:"1 minute", chart:"1", ta:"1m"},
+  {label:"5 minutes", chart:"5", ta:"5m"},
+  {label:"15 minutes", chart:"15", ta:"15m"},
+  {label:"1 heure", chart:"60", ta:"1h"},
+  {label:"4 heures", chart:"240", ta:"4h"},
+  {label:"1 jour", chart:"D", ta:"1D"}
+];
+
+const DEFAULT_SLOTS = [
+  {name:"EUR/USD", symbol:"FX:EURUSD"},
+  {name:"GBP/USD", symbol:"FX:GBPUSD"},
+  {name:"Or (XAU/USD)", symbol:"OANDA:XAUUSD"},
+  {name:"Pétrole WTI (USOIL)", symbol:"TVC:USOIL"}
+];
+
+// ---------- State ----------
+let slots = loadJSON('fxdesk_slots', DEFAULT_SLOTS);
+let intervalLabel = localStorage.getItem('fxdesk_interval') || "1 heure";
+
+function loadJSON(key, fallback){
+  try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+  catch(e){ return fallback; }
+}
+function saveSlots(){ localStorage.setItem('fxdesk_slots', JSON.stringify(slots)); }
+
+function journalKey(symbol){ return 'fxdesk_journal_' + symbol; }
+function getJournal(symbol){ return loadJSON(journalKey(symbol), []); }
+function saveJournal(symbol, entries){ localStorage.setItem(journalKey(symbol), JSON.stringify(entries)); }
+
+function findIntervalObj(){
+  return INTERVALS.find(i => i.label === intervalLabel) || INTERVALS[3];
+}
+
+// ---------- Interval selector ----------
+const intervalSelect = document.getElementById('interval-select');
+INTERVALS.forEach(i=>{
+  const opt = document.createElement('option');
+  opt.value = i.label; opt.textContent = "Unité de temps : " + i.label;
+  intervalSelect.appendChild(opt);
+});
+intervalSelect.value = intervalLabel;
+intervalSelect.addEventListener('change', ()=>{
+  intervalLabel = intervalSelect.value;
+  localStorage.setItem('fxdesk_interval', intervalLabel);
+  renderGrid();
+});
+
+// ---------- Config panel ----------
+const toggleConfigBtn = document.getElementById('toggle-config');
+const configPanel = document.getElementById('config-panel');
+toggleConfigBtn.addEventListener('click', ()=>{
+  configPanel.classList.toggle('open');
+  if(configPanel.classList.contains('open')) renderConfigPanel();
+});
+
+function renderConfigPanel(){
+  configPanel.innerHTML = '';
+  slots.forEach((slot, idx)=>{
+    const box = document.createElement('div');
+    box.className = 'slot-config';
+
+    const title = document.createElement('label');
+    title.textContent = 'Paire ' + (idx+1);
+    box.appendChild(title);
+
+    const catSelect = document.createElement('select');
+    const customOpt = new Option('— Symbole personnalisé —', '__custom__');
+    catSelect.appendChild(customOpt);
+    let matchedName = null;
+    Object.keys(CATALOGUE).forEach(cat=>{
+      const group = document.createElement('optgroup');
+      group.label = cat;
+      Object.entries(CATALOGUE[cat]).forEach(([name, sym])=>{
+        const opt = new Option(name, name);
+        if(sym === slot.symbol){ opt.selected = true; matchedName = name; }
+        group.appendChild(opt);
+      });
+      catSelect.appendChild(group);
+    });
+    if(!matchedName) catSelect.value = '__custom__';
+    box.appendChild(catSelect);
+
+    const row = document.createElement('div');
+    row.className = 'row';
+    const customInput = document.createElement('input');
+    customInput.type = 'text';
+    customInput.placeholder = 'Symbole TradingView (ex: FX:EURUSD)';
+    customInput.value = slot.symbol;
+    customInput.style.display = matchedName ? 'none' : 'block';
+    row.appendChild(customInput);
+    box.appendChild(row);
+
+    catSelect.addEventListener('change', ()=>{
+      if(catSelect.value === '__custom__'){
+        customInput.style.display = 'block';
+      } else {
+        customInput.style.display = 'none';
+        for(const cat of Object.keys(CATALOGUE)){
+          if(CATALOGUE[cat][catSelect.value]){
+            slots[idx].name = catSelect.value;
+            slots[idx].symbol = CATALOGUE[cat][catSelect.value];
+          }
+        }
+        saveSlots(); renderGrid();
+      }
+    });
+    customInput.addEventListener('change', ()=>{
+      slots[idx].name = customInput.value.trim();
+      slots[idx].symbol = customInput.value.trim();
+      saveSlots(); renderGrid();
+    });
+
+    if(slots.length > 2){
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'btn small ghost';
+      removeBtn.textContent = 'Retirer cette paire';
+      removeBtn.addEventListener('click', ()=>{
+        slots.splice(idx,1); saveSlots(); renderConfigPanel(); renderGrid();
+      });
+      box.appendChild(removeBtn);
+    }
+
+    configPanel.appendChild(box);
+  });
+
+  if(slots.length < 4){
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn primary small';
+    addBtn.style.alignSelf = 'flex-start';
+    addBtn.textContent = '+ Ajouter une paire';
+    addBtn.addEventListener('click', ()=>{
+      slots.push({name:"USD/JPY", symbol:"FX:USDJPY"});
+      saveSlots(); renderConfigPanel(); renderGrid();
+    });
+    configPanel.appendChild(addBtn);
+  }
+}
+
+// ---------- Ticker tape (bandeau de cotations en direct) ----------
+mountTVWidget(document.getElementById('ticker-tape'), 'https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js', {
+  symbols: [
+    {proName:"FX:EURUSD", title:"EUR/USD"},
+    {proName:"FX:GBPUSD", title:"GBP/USD"},
+    {proName:"FX:USDJPY", title:"USD/JPY"},
+    {proName:"OANDA:XAUUSD", title:"Or"},
+    {proName:"TVC:USOIL", title:"WTI"},
+    {proName:"TVC:DJI", title:"US30"},
+    {proName:"TVC:NDX", title:"US100"},
+    {proName:"COINBASE:BTCUSD", title:"BTC/USD"},
+    {proName:"COINBASE:ETHUSD", title:"ETH/USD"}
+  ],
+  showSymbolLogo: true,
+  isTransparent: true,
+  displayMode: "adaptive",
+  colorTheme: "dark",
+  locale: "fr"
+});
+
+// ---------- Economic calendar (temps réel) ----------
+mountTVWidget(document.getElementById('econ-calendar'), 'https://s3.tradingview.com/external-embedding/embed-widget-events.js', {
+  colorTheme: "dark",
+  isTransparent: true,
+  width: "100%",
+  height: "420",
+  locale: "fr",
+  importanceFilter: "-1,0,1",
+  countryFilter: "us,eu,gb,jp,au,ca,cn,de"
+});
+
+// ---------- Session clock (Sydney / Tokyo / Londres / New York), temps réel ----------
+const SESSIONS = [
+  {name:"Sydney", open:22, close:7},
+  {name:"Tokyo", open:0, close:9},
+  {name:"Londres", open:8, close:17},
+  {name:"New York", open:13, close:22}
+];
+// chevauchement Londres/New York = période la plus volatile
+function sessionSpans(open, close){
+  // retourne une liste de segments [start,end] sur 0-24, gère le passage à minuit
+  if(open < close) return [[open, close]];
+  return [[open, 24],[0, close]];
+}
+function isOpenNow(open, close, h){
+  if(open < close) return h >= open && h < close;
+  return h >= open || h < close;
+}
+function renderSessionClock(){
+  const el = document.getElementById('session-clock');
+  if(!el) return;
+  const now = new Date();
+  const h = now.getUTCHours() + now.getUTCMinutes()/60;
+  const hh = String(now.getUTCHours()).padStart(2,'0');
+  const mm = String(now.getUTCMinutes()).padStart(2,'0');
+  const ss = String(now.getUTCSeconds()).padStart(2,'0');
+
+  const londonOpen = isOpenNow(8,17,h);
+  const nyOpen = isOpenNow(13,22,h);
+  const overlap = londonOpen && nyOpen;
+
+  let html = `<div class="utc-clock">${hh}:${mm}:${ss} <span>Heure UTC</span></div>`;
+  SESSIONS.forEach(s=>{
+    const open = isOpenNow(s.open, s.close, h);
+    const isOverlapSession = overlap && (s.name === "Londres" || s.name === "New York");
+    const segs = sessionSpans(s.open, s.close);
+    let fills = '';
+    segs.forEach(([a,b])=>{
+      const left = (a/24*100).toFixed(2);
+      const width = ((b-a)/24*100).toFixed(2);
+      fills += `<div class="session-fill ${open ? (isOverlapSession?'overlap':'open') : ''}" style="left:${left}%;width:${width}%;"></div>`;
+    });
+    // marqueur de l'heure actuelle
+    const marker = `<div class="session-fill" style="left:${(h/24*100).toFixed(2)}%;width:1.5px;background:#fff;"></div>`;
+    html += `
+      <div class="session-row">
+        <div class="session-name">${s.name}</div>
+        <div class="session-track">${fills}${marker}</div>
+        <div class="session-status ${open?'open':''}">${open ? (isOverlapSession ? 'Chevauchement' : 'Ouvert') : 'Fermé'}</div>
+      </div>`;
+  });
+  html += `<div class="overlap-note">${overlap ? '⚡ Chevauchement Londres / New York en cours — volatilité généralement la plus élevée.' : "Le chevauchement Londres / New York (13h–17h UTC) est historiquement la période la plus volatile."}</div>`;
+  el.innerHTML = html;
+}
+renderSessionClock();
+setInterval(renderSessionClock, 1000);
+
+// ---------- TradingView widget helper ----------
+function mountTVWidget(container, src, config){
+  container.innerHTML = '<div class="tradingview-widget-container__widget"></div>';
+  const script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src = src;
+  script.async = true;
+  script.text = JSON.stringify(config);
+  container.appendChild(script);
+}
+
+// ---------- Bias scoring ----------
+const BIAS_LEVELS = [
+  {key:'ss', label:'Vente forte', cls:'txt-ss'},
+  {key:'s',  label:'Vente', cls:'txt-s'},
+  {key:'n',  label:'Neutre', cls:'txt-n'},
+  {key:'b',  label:'Achat', cls:'txt-b'},
+  {key:'bs', label:'Achat fort', cls:'txt-bs'}
+];
+
+function computeBias(liquidity, bos, reversal){
+  let score = 0;
+  if(liquidity === 'buy-side') score -= 1;   // liquidité prise au-dessus des hauts -> souvent baissier
+  if(liquidity === 'sell-side') score += 1;  // liquidité prise sous les bas -> souvent haussier
+  if(bos === 'haussier') score += 1;
+  if(bos === 'baissier') score -= 1;
+  if(reversal === 'haussier') score += 1;
+  if(reversal === 'baissier') score -= 1;
+
+  if(score <= -2) return 0;
+  if(score === -1) return 1;
+  if(score === 0) return 2;
+  if(score === 1) return 3;
+  return 4;
+}
+
+function renderBiasBar(container, levelIdx){
+  const clsMap = ['active-ss','active-s','active-n','active-b','active-bs'];
+  const bar = document.createElement('div');
+  bar.className = 'bias-bar';
+  for(let i=0;i<5;i++){
+    const seg = document.createElement('div');
+    seg.className = 'bias-seg' + (i===levelIdx ? ' '+clsMap[i] : '');
+    bar.appendChild(seg);
+  }
+  const labels = document.createElement('div');
+  labels.className = 'bias-labels';
+  labels.innerHTML = '<span>Vente forte</span><span>Vente</span><span>Neutre</span><span>Achat</span><span>Achat fort</span>';
+  const verdict = document.createElement('div');
+  verdict.className = 'bias-verdict ' + BIAS_LEVELS[levelIdx].cls;
+  verdict.textContent = 'Biais actuel : ' + BIAS_LEVELS[levelIdx].label;
+
+  container.innerHTML = '';
+  container.appendChild(bar);
+  container.appendChild(labels);
+  container.appendChild(verdict);
+}
+
+// ---------- Card builder ----------
+function buildCard(slot){
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const head = document.createElement('div');
+  head.className = 'card-head';
+  head.innerHTML = `<div class="sym">${slot.name}<small>${slot.symbol}</small></div>`;
+  card.appendChild(head);
+
+  const body = document.createElement('div');
+  body.className = 'card-body';
+
+  // --- chart column ---
+  const chartCol = document.createElement('div');
+  chartCol.className = 'chart-col';
+  const chartWrap = document.createElement('div');
+  chartWrap.className = 'chart-wrap';
+  const chartContainer = document.createElement('div');
+  chartContainer.className = 'tradingview-widget-container';
+  chartWrap.appendChild(chartContainer);
+  chartCol.appendChild(chartWrap);
+  const chartHint = document.createElement('div');
+  chartHint.className = 'chart-hint';
+  chartHint.innerHTML = '💡 Figures de chandeliers (doji, engulfing, marteau...) : clique sur <strong>Indicateurs</strong> sur le graphique ci-dessus → <strong>Technicals → Patterns</strong>.';
+  chartCol.appendChild(chartHint);
+  body.appendChild(chartCol);
+
+  const iv = findIntervalObj();
+  mountTVWidget(chartContainer, 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js', {
+    autosize: true,
+    symbol: slot.symbol,
+    interval: iv.chart,
+    timezone: "Etc/UTC",
+    theme: "dark",
+    style: "1",
+    locale: "fr",
+    hide_top_toolbar: false,
+    hide_legend: false,
+    withdateranges: true,
+    allow_symbol_change: false,
+    studies: [
+      "STD;RSI",
+      "STD;MACD",
+      "STD;Bollinger_Bands",
+      "STD;EMA",
+      "STD;Volume",
+      "STD;Pivot_Points_Standard"
+    ],
+    support_host: "https://www.tradingview.com"
+  });
+
+  // --- side column ---
+  const sideCol = document.createElement('div');
+  sideCol.className = 'side-col';
+
+  // price / high-low
+  const infoBlock = document.createElement('div');
+  infoBlock.className = 'side-block';
+  infoBlock.innerHTML = '<h3>Cours & plage du jour (haut / bas)</h3>';
+  const infoContainer = document.createElement('div');
+  infoContainer.className = 'tradingview-widget-container';
+  infoBlock.appendChild(infoContainer);
+  sideCol.appendChild(infoBlock);
+  mountTVWidget(infoContainer, 'https://s3.tradingview.com/external-embedding/embed-widget-symbol-info.js', {
+    symbol: slot.symbol,
+    width: "100%",
+    locale: "fr",
+    colorTheme: "dark",
+    isTransparent: true
+  });
+
+  // fil d'actualités en direct pour la paire
+  const newsBlock = document.createElement('div');
+  newsBlock.className = 'side-block';
+  newsBlock.innerHTML = '<h3><span class="live-dot"></span>Actualités en direct</h3>';
+  const newsContainer = document.createElement('div');
+  newsContainer.className = 'tradingview-widget-container';
+  newsBlock.appendChild(newsContainer);
+  sideCol.appendChild(newsBlock);
+  mountTVWidget(newsContainer, 'https://s3.tradingview.com/external-embedding/embed-widget-timeline.js', {
+    feedMode: "symbol",
+    symbol: slot.symbol,
+    isTransparent: true,
+    displayMode: "compact",
+    width: "100%",
+    height: "260",
+    colorTheme: "dark",
+    locale: "fr"
+  });
+
+  // technical analysis gauge (RSI, MACD, moyennes mobiles...)
+  const taBlock = document.createElement('div');
+  taBlock.className = 'side-block';
+  taBlock.innerHTML = '<h3>Analyse technique automatique (RSI, MACD, moyennes mobiles)</h3>';
+  const taContainer = document.createElement('div');
+  taContainer.className = 'tradingview-widget-container';
+  taBlock.appendChild(taContainer);
+  sideCol.appendChild(taBlock);
+  mountTVWidget(taContainer, 'https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js', {
+    interval: iv.ta,
+    width: "100%",
+    isTransparent: true,
+    height: "420",
+    symbol: slot.symbol,
+    showIntervalTabs: true,
+    displayMode: "multiple",
+    locale: "fr",
+    colorTheme: "dark"
+  });
+
+  // manual structure journal
+  const journalBlock = document.createElement('div');
+  journalBlock.className = 'side-block';
+  journalBlock.innerHTML = '<h3>Biais structure de marché (manuel)</h3>';
+
+  const biasBarContainer = document.createElement('div');
+  journalBlock.appendChild(biasBarContainer);
+
+  const form = document.createElement('div');
+  form.className = 'journal-form';
+  form.style.marginTop = '12px';
+  form.innerHTML = `
+    <div class="row2">
+      <select data-field="liquidity">
+        <option value="none">Liquidité — aucune</option>
+        <option value="buy-side">Liquidité prise (côté hauts / buy-side)</option>
+        <option value="sell-side">Liquidité prise (côté bas / sell-side)</option>
+      </select>
+      <select data-field="bos">
+        <option value="none">BOS — aucun</option>
+        <option value="haussier">BOS haussier</option>
+        <option value="baissier">BOS baissier</option>
+      </select>
+    </div>
+    <select data-field="reversal">
+      <option value="none">Retournement — non détecté</option>
+      <option value="haussier">Retournement haussier</option>
+      <option value="baissier">Retournement baissier</option>
+    </select>
+    <textarea data-field="notes" placeholder="Notes (zone de prix, bougie clé, timeframe observé...)"></textarea>
+    <button class="btn primary small" data-action="save">Enregistrer l'observation</button>
+  `;
+  journalBlock.appendChild(form);
+
+  const logTitle = document.createElement('h3');
+  logTitle.style.marginTop = '14px';
+  logTitle.textContent = 'Dernières observations';
+  journalBlock.appendChild(logTitle);
+
+  const logContainer = document.createElement('div');
+  logContainer.className = 'journal-log';
+  journalBlock.appendChild(logContainer);
+
+  sideCol.appendChild(journalBlock);
+  body.appendChild(sideCol);
+  card.appendChild(body);
+
+  function updateLiveBias(){
+    const liquidity = form.querySelector('[data-field="liquidity"]').value;
+    const bos = form.querySelector('[data-field="bos"]').value;
+    const reversal = form.querySelector('[data-field="reversal"]').value;
+    const level = computeBias(liquidity, bos, reversal);
+    renderBiasBar(biasBarContainer, level);
+  }
+
+  form.querySelectorAll('select').forEach(sel=>{
+    sel.addEventListener('change', updateLiveBias);
+  });
+
+  function renderLog(){
+    const entries = getJournal(slot.symbol);
+    logContainer.innerHTML = '';
+    if(entries.length === 0){
+      logContainer.innerHTML = '<div class="empty-log">Aucune observation enregistrée pour le moment.</div>';
+      return;
+    }
+    entries.slice().reverse().slice(0,6).forEach((entry)=>{
+      const realIdx = entries.indexOf(entry);
+      const div = document.createElement('div');
+      div.className = 'journal-entry';
+      const tagsHtml = [
+        entry.liquidity !== 'none' ? `<span class="tag ${entry.liquidity==='sell-side'?'buy':'sell'}">Liquidité ${entry.liquidity==='sell-side'?'sell-side':'buy-side'}</span>` : '',
+        entry.bos !== 'none' ? `<span class="tag ${entry.bos==='haussier'?'buy':'sell'}">BOS ${entry.bos}</span>` : '',
+        entry.reversal !== 'none' ? `<span class="tag ${entry.reversal==='haussier'?'buy':'sell'}">Retournement ${entry.reversal}</span>` : ''
+      ].join('');
+      div.innerHTML = `
+        <span class="del" title="Supprimer">✕</span>
+        <div class="ts">${new Date(entry.ts).toLocaleString('fr-FR')}</div>
+        <div class="tags">${tagsHtml}</div>
+        ${entry.notes ? `<div class="note">${escapeHtml(entry.notes)}</div>` : ''}
+      `;
+      div.querySelector('.del').addEventListener('click', ()=>{
+        const all = getJournal(slot.symbol);
+        all.splice(realIdx,1);
+        saveJournal(slot.symbol, all);
+        renderLog();
+      });
+      logContainer.appendChild(div);
+    });
+  }
+
+  form.querySelector('[data-action="save"]').addEventListener('click', ()=>{
+    const liquidity = form.querySelector('[data-field="liquidity"]').value;
+    const bos = form.querySelector('[data-field="bos"]').value;
+    const reversal = form.querySelector('[data-field="reversal"]').value;
+    const notes = form.querySelector('[data-field="notes"]').value.trim();
+    const entries = getJournal(slot.symbol);
+    entries.push({ts: Date.now(), liquidity, bos, reversal, notes});
+    saveJournal(slot.symbol, entries);
+    form.querySelector('[data-field="notes"]').value = '';
+    renderLog();
+  });
+
+  updateLiveBias();
+  renderLog();
+
+  return card;
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+// ---------- Grid render ----------
+function renderGrid(){
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  slots.forEach(slot=>{
+    grid.appendChild(buildCard(slot));
+  });
+}
+
+renderGrid();
+</script>
+</body>
+</html>
